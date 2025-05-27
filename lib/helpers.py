@@ -1,5 +1,6 @@
 from db.models import session, Vehicle, ParkingSpot, Payment
 from datetime import datetime
+from sqlalchemy import func, case
 import sys
 
 def display_welcome():
@@ -275,4 +276,67 @@ def view_unpaid_payments():
     print("-" * 70)
     
     for payment in payments:
-        print(f"{payment.vehicle.license_plate:<15}${payment.amount:<9.2f}{payment.vehicle.check_in_time.strftime('%Y-%m-%d %H:%M'):<20}{payment.vehicle.check_out_time.strftime('%Y-%m-%d %H:%M') if payment.vehicle.check_out_time else 'N/A':<20}")        
+        print(f"{payment.vehicle.license_plate:<15}${payment.amount:<9.2f}{payment.vehicle.check_in_time.strftime('%Y-%m-%d %H:%M'):<20}{payment.vehicle.check_out_time.strftime('%Y-%m-%d %H:%M') if payment.vehicle.check_out_time else 'N/A':<20}")      
+
+def daily_revenue_report():
+    date_str = input("Enter date for report (YYYY-MM-DD) or leave blank for today: ").strip()
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            print("Invalid date format. Please use YYYY-MM-DD.")
+            return
+    else:
+        report_date = datetime.now().date()
+    
+    payments = session.query(Payment).filter(
+        Payment.is_paid == 1,
+        Payment.payment_time >= datetime.combine(report_date, datetime.min.time()),
+        Payment.payment_time <= datetime.combine(report_date, datetime.max.time())
+    ).all()
+    
+    total_revenue = sum(p.amount for p in payments)
+    
+    print(f"\nDAILY REVENUE REPORT FOR {report_date}")
+    print("-" * 60)
+    print(f"Total Payments Processed: {len(payments)}")
+    print(f"Total Revenue: ${total_revenue:.2f}")
+    print("\nPayment Methods Breakdown:")
+    
+    methods = {}
+    for payment in payments:
+        method = payment.payment_method or 'unknown'
+        methods[method] = methods.get(method, 0) + payment.amount
+    
+    for method, amount in methods.items():
+        count = len([p for p in payments if (p.payment_method or 'unknown') == method])
+        print(f"{method.capitalize()}: ${amount:.2f} ({count} payments)")
+    
+    print("-" * 60)
+
+def occupancy_report():
+    total_spots = session.query(ParkingSpot).count()
+    occupied_spots = session.query(ParkingSpot).filter_by(is_occupied=1).count()
+    occupancy_rate = (occupied_spots / total_spots) * 100 if total_spots > 0 else 0
+    
+    print("\nOCCUPANCY REPORT")
+    print("-" * 60)
+    print(f"Total Parking Spots: {total_spots}")
+    print(f"Occupied Spots: {occupied_spots}")
+    print(f"Vacant Spots: {total_spots - occupied_spots}")
+    print(f"Occupancy Rate: {occupancy_rate:.1f}%")
+    print("\nBy Spot Type:")
+    
+    spot_types = session.query(
+        ParkingSpot.spot_type,
+        func.count(ParkingSpot.id).label('total'),
+        func.sum(
+            case([(ParkingSpot.is_occupied == 1, 1)], else_=0)
+        ).label('occupied')
+    ).group_by(ParkingSpot.spot_type).all()
+    
+    for st in spot_types:
+        type_occupancy = (st.occupied / st.total) * 100 if st.total > 0 else 0
+        print(f"{st.spot_type.capitalize()}: {int(st.occupied)}/{st.total} ({type_occupancy:.1f}%)")
+    
+    print("-" * 60)
