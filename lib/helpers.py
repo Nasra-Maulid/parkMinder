@@ -154,3 +154,59 @@ def view_all_vehicles():
     for vehicle in vehicles:
         check_out = vehicle.check_out_time.strftime("%Y-%m-%d %H:%M") if vehicle.check_out_time else "Not checked out"
         print(f"{vehicle.license_plate:<15}{vehicle.vehicle_type:<10}{vehicle.check_in_time.strftime('%Y-%m-%d %H:%M'):<20}{check_out:<20}{vehicle.parking_spot.spot_number:<10}")
+
+def view_all_spots():
+    spots = session.query(ParkingSpot).order_by(ParkingSpot.spot_number).all()
+    if not spots:
+        print("No parking spots found in the system.")
+        return
+    
+    print("\nALL PARKING SPOTS:")
+    print("-" * 60)
+    print(f"{'Spot Number':<15}{'Type':<15}{'Status':<30}")
+    print("-" * 60)
+    
+    for spot in spots:
+        status = "Occupied" if spot.is_occupied else "Available"
+        print(f"{spot.spot_number:<15}{spot.spot_type:<15}{status:<30}")
+
+def view_available_spots():
+    spots = session.query(ParkingSpot).filter_by(is_occupied=0).order_by(ParkingSpot.spot_number).all()
+    if not spots:
+        print("No available parking spots.")
+        return
+    
+    print("\nAVAILABLE PARKING SPOTS:")
+    print("-" * 45)
+    print(f"{'Spot Number':<15}{'Type':<15}{'Status':<15}")
+    print("-" * 45)
+    
+    for spot in spots:
+        print(f"{spot.spot_number:<15}{spot.spot_type:<15}{'Available':<15}")
+
+def add_new_spot():
+    print("\nADD NEW PARKING SPOT")
+    spot_number = input("Enter spot number (e.g., R001, H002, E003): ").strip().upper()
+    
+    existing_spot = session.query(ParkingSpot).filter_by(spot_number=spot_number).first()
+    if existing_spot:
+        print("Error: Spot with this number already exists.")
+        return
+    
+    spot_type = input("Enter spot type (regular/handicap/electric): ").lower()
+    while spot_type not in ['regular', 'handicap', 'electric']:
+        print("Invalid spot type. Please enter regular, handicap, or electric.")
+        spot_type = input("Enter spot type (regular/handicap/electric): ").lower()
+    
+    new_spot = ParkingSpot(
+        spot_number=spot_number,
+        spot_type=spot_type,
+        is_occupied=0
+    )
+    
+    session.add(new_spot)
+    session.commit()
+    
+    print(f"\nNew parking spot added successfully!")
+    print(f"Spot Number: {new_spot.spot_number}")
+    print(f"Spot Type: {new_spot.spot_type.capitalize()}")        
