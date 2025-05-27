@@ -209,4 +209,70 @@ def add_new_spot():
     
     print(f"\nNew parking spot added successfully!")
     print(f"Spot Number: {new_spot.spot_number}")
-    print(f"Spot Type: {new_spot.spot_type.capitalize()}")        
+    print(f"Spot Type: {new_spot.spot_type.capitalize()}")    
+
+def process_payment():
+    print("\nPROCESS PAYMENT")
+    license_plate = input("Enter license plate: ").strip().upper()
+    
+    vehicle = find_vehicle_by_plate(license_plate)
+    if not vehicle or not vehicle.check_out_time:
+        print("Error: Vehicle not found or not checked out.")
+        return
+    
+    payment = session.query(Payment).filter_by(vehicle_id=vehicle.id, is_paid=0).first()
+    if not payment:
+        print("Error: No unpaid payment found for this vehicle.")
+        return
+    
+    print(f"\nPayment Due: ${payment.amount:.2f}")
+    print(f"Vehicle: {vehicle.license_plate}")
+    print(f"Parking Duration: {(vehicle.check_out_time - vehicle.check_in_time)}")
+    
+    payment_method = input("Enter payment method (cash/credit/mobile): ").lower()
+    while payment_method not in ['cash', 'credit', 'mobile']:
+        print("Invalid payment method. Please enter cash, credit, or mobile.")
+        payment_method = input("Enter payment method (cash/credit/mobile): ").lower()
+    
+    payment.payment_method = payment_method
+    payment.is_paid = 1
+    payment.payment_time = datetime.now()
+    
+    session.commit()
+    
+    print("\nPayment processed successfully!")
+    print(f"Amount Paid: ${payment.amount:.2f}")
+    print(f"Payment Method: {payment.payment_method.capitalize()}")
+    print(f"Payment Time: {payment.payment_time}")
+
+def view_all_payments():
+    payments = session.query(Payment).join(Vehicle).all()
+    if not payments:
+        print("No payments found in the system.")
+        return
+    
+    print("\nALL PAYMENTS:")
+    print("-" * 90)
+    print(f"{'License Plate':<15}{'Amount':<10}{'Method':<10}{'Paid':<10}{'Payment Time':<20}{'Check-in':<20}{'Check-out':<20}")
+    print("-" * 90)
+    
+    for payment in payments:
+        paid_status = "Yes" if payment.is_paid else "No"
+        method = payment.payment_method.capitalize() if payment.payment_method else "N/A"
+        payment_time = payment.payment_time.strftime("%Y-%m-%d %H:%M") if payment.payment_time else "N/A"
+        
+        print(f"{payment.vehicle.license_plate:<15}${payment.amount:<9.2f}{method:<10}{paid_status:<10}{payment_time:<20}{payment.vehicle.check_in_time.strftime('%Y-%m-%d %H:%M'):<20}{payment.vehicle.check_out_time.strftime('%Y-%m-%d %H:%M') if payment.vehicle.check_out_time else 'N/A':<20}")
+
+def view_unpaid_payments():
+    payments = session.query(Payment).filter_by(is_paid=0).join(Vehicle).all()
+    if not payments:
+        print("No unpaid payments found.")
+        return
+    
+    print("\nUNPAID PAYMENTS:")
+    print("-" * 70)
+    print(f"{'License Plate':<15}{'Amount':<10}{'Check-in':<20}{'Check-out':<20}")
+    print("-" * 70)
+    
+    for payment in payments:
+        print(f"{payment.vehicle.license_plate:<15}${payment.amount:<9.2f}{payment.vehicle.check_in_time.strftime('%Y-%m-%d %H:%M'):<20}{payment.vehicle.check_out_time.strftime('%Y-%m-%d %H:%M') if payment.vehicle.check_out_time else 'N/A':<20}")        
