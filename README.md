@@ -33,7 +33,7 @@ The system uses three main tables:
    - payment_method
    - is_paid (boolean)
 
-<!-- ## Installation
+## Installation
 
 1. Clone the repository:
    ```bash
@@ -46,5 +46,5 @@ The system uses three main tables:
 
 3. Initialize the database:
     PYTHONPATH=. alembic upgrade head
-    PYTHONPATH=. python lib/db/seed.py -->
-
+    PYTHONPATH=. python lib/db/seed.py
+ 
